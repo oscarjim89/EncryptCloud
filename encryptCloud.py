@@ -44,15 +44,15 @@ def create_text_file(bucket_name, item_name, file_text):
     except Exception as e:
         print("Unable to create text file: {0}".format(e))
 
-
-# load the key
-key = load_key()
-# file name
-file = "data.csv"
-# encrypt it
-encrypt(file, key)
-
-create_text_file("cos.encrypt.test","data.csv","data.csv")
+if __name__ == "__main__":
+    # load the key
+    key = load_key()
+    # file name
+    file = "data.csv"
+    # encrypt it
+    encrypt(file, key)
+    #Send it to COS
+    create_text_file("cos.encrypt.test","data.csv","data.csv")
 
 
 
