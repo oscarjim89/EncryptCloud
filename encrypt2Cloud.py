@@ -20,8 +20,26 @@ cos = ibm_boto3.resource("s3",
     ibm_api_key_id=config_p['API_KEY'],
     ibm_service_instance_id=config_p['COS_INSTANCE_CRN'],
     config=Config(signature_version="oauth"),
-    endpoint_url=config_p['COS_ENDPOINT']
+    endpoint_url=config_p['COS_ENDPOINT'],
+    auth_function=token_proxy()                     
 )
+
+def token_proxy():
+    headers = {
+        'Content-Type': 'application/x-www-form-urlencoded',
+        'Accept': 'application/json'
+    }
+    proxy = {
+        "https": "http://10.113.10.13:8080"
+    }
+    params = {
+        "apikey":config_p['API_KEY'],
+        "response_type":"cloud_iam",
+        "grant_type":"urn:ibm:params:oauth:grant-type:apikey"
+    }
+    response = requests.request('POST', url="https://iam.cloud.ibm.com/oidc/token", headers=headers, params=params, timeout=30, proxies=proxy)
+
+    return response.json
 
 #Loads the key from the current directory named `key.key`
 def load_key(key):
