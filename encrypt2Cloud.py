@@ -6,6 +6,9 @@ import time
 import os, sys
 import json
 import base64
+import requests
+from Crypto.Cipher import AES
+
 
 CONFIG_PATH="OKV2cloud.conf"
 #Verify config Path location...
@@ -21,7 +24,7 @@ cos = ibm_boto3.resource("s3",
     ibm_service_instance_id=config_p['COS_INSTANCE_CRN'],
     config=Config(signature_version="oauth"),
     endpoint_url=config_p['COS_ENDPOINT'],
-    auth_function=token_proxy()                     
+    auth_function=token_proxy()
 )
 
 def token_proxy():
@@ -46,15 +49,29 @@ def load_key(key):
     return open(key, "rb").read()
 
 #Given a filename (str) and key (bytes), it encrypts the file and write it
-def encrypt(filename, key):
-    f = Fernet(key)
-    with open(filename, "rb") as file:
-        file_data = file.read()
-    # encrypt data
-    encrypted_data = f.encrypt(file_data)
-    # write the encrypted file
-    with open(filename, "wb") as file:
-        file.write(encrypted_data)
+def encrypt(key, in_filename, out_filename=None, chunksize=64*1024):
+    
+    if not out_filename:
+        out_filename = in_filename + '.enc'
+
+    iv = ''.join(chr(random.randint(0, 0xFF)) for i in range(16))
+    encryptor = AES.new(key, AES.MODE_CBC, iv)
+    filesize = os.path.getsize(in_filename)
+
+    with open(in_filename, 'rb') as infile:
+        with open(out_filename, 'wb') as outfile:
+            outfile.write(struct.pack('<Q', filesize))
+            outfile.write(iv)
+
+            while True:
+                chunk = infile.read(chunksize)
+                if len(chunk) == 0:
+                    break
+                elif len(chunk) % 16 != 0:
+                    chunk += ' ' * (16 - len(chunk) % 16)
+
+                outfile.write(encryptor.encrypt(chunk))
+
 
 def upload(bucket_name, item_name, file_text):
     
@@ -100,7 +117,7 @@ if __name__ == "__main__":
                 if(today.day == file_date.day):
                     #Encrypting data
                     print("Encrypting file " + f)
-                    encrypt(path_file, key)
+                    encrypt(key,path_file,path_file)
                     #Uploading to the Cloud
                     print("uploading file " + path_file)
                     upload(config_p['BUCKET_NAME'],f,path_file)
